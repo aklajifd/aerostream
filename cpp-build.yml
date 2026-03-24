@@ -2,9 +2,9 @@ name: C++ CI Build
 
 on: 
   push:
-    branches: [ main ]
+    branches: [ "main" ]
   pull_request:
-    branches: [ main ]
+    branches: [ "main"]
 
 jobs:
   build:
@@ -21,4 +21,4 @@ jobs:
 
     - name: Verify Build
       run: ./telemetry_sim --help || echo "Build Successful"
-     
+    
