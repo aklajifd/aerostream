@@ -24,3 +24,9 @@ jobs:
 
     - name: Verify Binary Exists
       run: ls -l telemetry_sim
+
+    - name: Set up Python
+      uses: actions/checkout@v4
+
+    - name: Run Python Unit Tests
+      run: python3 test_processor.py
