@@ -1,2 +1,13 @@
+# Compiled Binaries
 telemetry_sim
+
+# Database files
 *.db
+
+# Python Virtual Environment
+venv/
+__pycache__/
+*.pyc
+
+# IDE Settings
+.vscode/
