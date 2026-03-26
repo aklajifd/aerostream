@@ -4,6 +4,14 @@
 #include <vector>
 #include <thread>
 #include <chrono>
+#include <csignal>
+#include <atomic>
+
+std::atomic<bool> keep_running(true);
+
+void signal_handler(int signal) {
+	keep_running = false;
+}
 
 // The Interface (Abstract Base Class)
 // Defines what all telemetry types must be able to do
@@ -46,27 +54,31 @@ public:
 };
 
 int main() {
-	// A list of the packet types we want to cycle through
-	std::vector<std::string> types = {"GPS", "POWER", "THERMAL"};
-	int index = 0;
+	std::signal(SIGINT, signal_handler);  // Listen for Ctrl+C
 
-	std::cout << "--- Satellite Stream Starting (Press Ctrl+C to stop) ---" << std::endl;
+	while(keep_running) {
+		// A list of the packet types we want to cycle through
+		std::vector<std::string> types = {"GPS", "POWER", "THERMAL"};
+		int index = 0;
 	
-	while (true) {
-		// Get the next type from our list
-		std::string currentType = types[index % types.size()];
-
-		// Use our Factory to create the packet
-		auto packet = TelemetryFactory::createPacket(currentType);
-
-		if (packet) {
-			packet->process();
+		std::cout << "--- Satellite Stream Starting (Press Ctrl+C to stop) ---" << std::endl;
+		
+		while (true) {
+			// Get the next type from our list
+			std::string currentType = types[index % types.size()];
+	
+			// Use our Factory to create the packet
+			auto packet = TelemetryFactory::createPacket(currentType);
+	
+			if (packet) {
+				packet->process();
+			}
+	
+			index++;
+	
+			std::this_thread::sleep_for(std::chrono::seconds(1));
 		}
-
-		index++;
-
-		std::this_thread::sleep_for(std::chrono::seconds(1));
 	}
-
+	std::cout << "Satellite powering down safely..." << std::endl;
 	return 0;
 }

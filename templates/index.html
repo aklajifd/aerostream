@@ -1,34 +1,121 @@
 <!DOCTYPE html>
 <html>
+
 <head>
-    <title>AeroStream Dashboard</title>
+    <title>AeroStream Live Tracker</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
-        body { font-family: 'Courier New', monospace; background: #0b0e14; color: #00ff41; padding: 20px; }
-        .packet { border: 1px solid #00ff41; padding: 10px; margin: 10px 0; border-radius: 5px; }
-        h1 { border-bottom: 2px solid #00ff41; }
+        body {
+            font-family: 'Courier New', monospace;
+            background: #0b0e14;
+            color: #00ff41;
+            padding: 20px;
+        }
+
+        #map {
+            height: 400px;
+            width: 100%;
+            border: 2px solid #00ff41;
+            margin-bottom: 20px;
+        }
+
+        .packet {
+            border: 1px solid #333;
+            padding: 5px;
+            font-size: 0.8em;
+            margin-bottom: 5px;
+        }
+
+        #status-dot {
+            padding: 5px 10px;
+            border-radius: 3px;
+            color: black;
+            font-weight: bold;
+            background: gray;
+            transition: background 0.5s ease;
+        }
     </style>
 </head>
+
 <body>
-    <h1>🛰️ AEROSTREAM LIVE TELEMETRY</h1>
-    <div id="data-container">Waiting for satellite lock...</div>
+    <h1>🛰️ AEROSTREAM MISSION CONTROL</h1>
+
+    <div style="margin-bottom: 15px;">
+        <span id="status-dot">CONNECTING...</span>
+    </div>
+
+    <div id="map"></div>
+
+    <h3>Live Telemetry Feed</h3>
+    <div id="data-container">Initializing Orbital Lock...</div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
     <script>
+        // Initialize the map centered on 0,0 (International Waters)
+        var map = L.map('map').setView([0, 0], 2);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+        var marker = L.marker([0, 0]).addTo(map);
+
         function updateDashboard() {
             fetch('/api/data')
                 .then(response => response.json())
                 .then(data => {
-                    let html = '';
-                    data.forEach(row => {
-                        html += `<div class="packet">
-                            <strong>[${row[1]}]</strong> ${row[2]} <br>
-                            <small>Time: ${row[3]}</small>
-                        </div>`;
-                    });
-                    document.getElementById('data-container').innerHTML = html;
+                    if (data.length > 0) {
+                        // 1. Get the most recent row
+                        const latestRow = data[0];
+                        const rawMsg = latestRow[2];
+                        const timestamp = new Date(latestRow[3]);
+                        const now = new Date();
+
+                        // 2. Update Status Light (Logic: Is data older than 15 seconds?)
+                        const diff = (now - timestamp) / 1000;
+                        const statusDot = document.getElementById('status-dot');
+
+                        if (diff > 15) {
+                            statusDot.style.background = "red";
+                            statusDot.innerText = "OFFLINE / STALE";
+                        } else {
+                            statusDot.style.background = "#00ff41";
+                            statusDot.innerText = "LIVE";
+                        }
+
+                        // 3. Update Map Position (Regex to find Lat/Lon in the message)
+                        const latMatch = rawMsg.match(/Lat: ([\-\d\.]+)/);
+                        const lonMatch = rawMsg.match(/Lon: ([\-\d\.]+)/);
+
+                        if (latMatch && lonMatch) {
+                            const lat = parseFloat(latMatch[1]);
+                            const lon = parseFloat(lonMatch[1]);
+
+                            // Move marker and pan map
+                            marker.setLatLng([lat, lon]);
+                            map.panTo([lat, lon]);
+                        }
+
+                        // 4. Update the Text Feed below the map
+                        let html = '';
+                        data.forEach(row => {
+                            html += `<div class="packet">
+                                <strong>[${row[1]}]</strong> ${row[2]} <br>
+                                <small>Time: ${row[3]}</small>
+                            </div>`;
+                        });
+                        document.getElementById('data-container').innerHTML = html;
+                    }
+                })
+                .catch(err => {
+                    console.error("Fetch error:", err);
+                    document.getElementById('status-dot').style.background = "red";
+                    document.getElementById('status-dot').innerText = "CONNECTION ERROR";
                 });
         }
-        // Refresh every 2 seconds
-        setInterval(updateDashboard, 2000);
+
+        // Run update every 3 seconds
+        setInterval(updateDashboard, 3000);
+        // Run once immediately on load
+        updateDashboard();
     </script>
 </body>
+
 </html>
